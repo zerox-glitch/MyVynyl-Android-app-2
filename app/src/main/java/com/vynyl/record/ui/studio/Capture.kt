@@ -61,6 +61,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import com.vynyl.record.data.RecordStore
+import com.vynyl.record.data.VaultVoice
+import java.util.UUID
+
 private enum class RecState { Idle, Rec, Paused, Denied }
 
 private fun concat(parts: List<FloatArray>): FloatArray {
@@ -82,6 +86,7 @@ private fun displayName(ctx: Context, uri: Uri): String? = runCatching {
 @Composable
 internal fun Capture(
     source: FloatArray?, srcName: String?, max: Int, pro: Boolean,
+    onVoiceRecorded: ((id: String, name: String, data: FloatArray, duration: Float) -> Unit)? = null,
     setSource: (FloatArray?, String?, Boolean) -> Unit,
 ) {
     val ctx = LocalContext.current
@@ -97,6 +102,8 @@ internal fun Capture(
     val t = if (state == RecState.Rec) accSec + segSec else accSec
     var live by remember { mutableStateOf(listOf<Float>()) }
     val shownLevel = if (state == RecState.Rec) level else 0f
+    val vaultVoices by RecordStore.vaultVoices.collectAsState()
+    var showVaultVoices by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) { onDispose { recorder.cancel() } }
 
@@ -114,7 +121,12 @@ internal fun Capture(
         val data = concat(segments)
         segments.clear()
         state = RecState.Idle
-        setSource(data, "Microphone take · " + SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()), false)
+        val dur = data.size / SR.toFloat()
+        val timeStr = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date())
+        val takeName = "Microphone take · $timeStr"
+        val vid = UUID.randomUUID().toString()
+        setSource(data, takeName, false)
+        onVoiceRecorded?.invoke(vid, takeName, data, dur)
     }
 
     fun onLimit() { scope.launch(Dispatchers.Main) { finish() } }
@@ -267,6 +279,21 @@ internal fun Capture(
             Btn("Use a lullaby", { setSource(demoVoice(), "Lullaby · built-in demo", true) }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), variant = BtnVariant.Ghost)
         }
 
+        if (vaultVoices.isNotEmpty()) {
+            Row(
+                Modifier.padding(top = 10.dp).fillMaxWidth().heightIn(min = 48.dp).clip(CircleShape)
+                    .background(Brush.horizontalGradient(listOf(V.amber.copy(alpha = 0.2f), V.panel)))
+                    .border(1.dp, V.amber.copy(alpha = 0.5f), CircleShape)
+                    .clickable { showVaultVoices = true }
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("✦", style = sansStyle(14, V.amberBright))
+                Spacer(Modifier.width(8.dp))
+                Text("Use voice from Master Vault (${vaultVoices.size})", style = sansStyle(13, V.cream, 600))
+            }
+        }
+
         if (trimmed) {
             val s = buildAnnotatedString {
                 append("This file was trimmed to ${fmt(max.toFloat())}.")
@@ -278,6 +305,64 @@ internal fun Capture(
             )
         }
         if (source != null) SourceCard(source, srcName)
+
+        if (showVaultVoices) {
+            Box(
+                Modifier.fillMaxSize().background(V.obsidian.copy(0.75f)).clickable { showVaultVoices = false },
+                contentAlignment = Alignment.Center,
+            ) {
+                val sh = RoundedCornerShape(20.dp)
+                Column(
+                    Modifier.fillMaxWidth(0.92f).clip(sh).background(V.stone)
+                        .border(1.dp, V.brass.copy(0.3f), sh).clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, null) {}.padding(20.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Master Vault Voices", style = displayStyle(20))
+                        Text("✕", Modifier.clip(CircleShape).clickable { showVaultVoices = false }.padding(6.dp), style = sansStyle(14, V.muted))
+                    }
+                    Text("Select a saved voice to make a record:", style = sansStyle(12, V.muted), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+
+                    Column(Modifier.fillMaxWidth().heightIn(max = 280.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        vaultVoices.forEach { v ->
+                            val isCurrent = srcName == v.name
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                    .background(if (isCurrent) V.amber.copy(0.18f) else V.panel)
+                                    .border(1.dp, if (isCurrent) V.amber else V.brass.copy(0.2f), RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        scope.launch {
+                                            val samples = RecordStore.loadVaultVoice(v.id)
+                                            if (samples != null) {
+                                                setSource(samples, v.name, false)
+                                                showVaultVoices = false
+                                            }
+                                        }
+                                    }.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(v.name, style = sansStyle(14, V.cream, 600), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(fmt(v.duration), style = monoStyle(11, V.amberBright))
+                                        if (v.recordTitle != null) {
+                                            Text("·", style = sansStyle(11, V.muted))
+                                            Text("Record: ${v.recordTitle}", style = sansStyle(11, V.muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                }
+                                Box(
+                                    Modifier.clip(CircleShape).background(V.amber.copy(0.25f)).border(1.dp, V.amber, CircleShape).padding(horizontal = 10.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Select", style = sansStyle(11, V.cream, 600))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

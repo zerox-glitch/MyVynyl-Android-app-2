@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 object Free {
     const val MAX_SECONDS = 3 * 60
     const val MAX_RECORDS = 3
+    const val MAX_VOICES = 2
     /** times a free user may go back to the Studio to re-press one record */
     const val REEDITS = 3
     val presets = setOf("clean", "warm", "dusty")
@@ -44,6 +45,7 @@ val PLANS = listOf(
 data class Perk(val title: String, val body: String)
 val PERKS = listOf(
     Perk("Twenty-minute recordings", "Whole stories, songs and letters — not just three minutes."),
+    Perk("Unlimited saved voices", "Save as many recorded voices in the master vault as you like."),
     Perk("Every mood, character & crackle", "Gramophone, war radio, TV broadcast, shellac and more."),
     Perk("The full music library", "Romantic, vintage and dance-band beds for every occasion."),
     Perk("Unlimited records", "Keep every voice on your shelf, not just three."),

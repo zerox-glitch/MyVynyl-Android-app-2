@@ -81,6 +81,7 @@ private data class RenderState(val p: Float, val stage: String)
 fun Studio(
     recordCount: Int, onDone: (RecordMeta) -> Unit, onPlay: (RecordMeta) -> Unit, edit: RecordMeta? = null, onCancelEdit: () -> Unit = {},
     capture: Int = 0, active: Boolean = true, onStep: (Int) -> Unit = {},
+    initialVoice: com.vynyl.record.data.VaultVoice? = null, onClearInitialVoice: () -> Unit = {},
 ) {
     val ent by Pro.entitlement.collectAsState()
     val pro = ent.pro
@@ -96,6 +97,7 @@ fun Studio(
     var source by remember { mutableStateOf<FloatArray?>(null) }
     var isDemo by remember { mutableStateOf(false) }
     var srcName by remember { mutableStateOf<String?>(null) }
+    var currentVoiceId by remember { mutableStateOf<String?>(null) }
     var meta by remember { mutableStateOf(StudioMeta()) }
     var presetId by remember { mutableStateOf("warm") }
     var styleId by remember { mutableStateOf("ruby") }
@@ -117,7 +119,19 @@ fun Studio(
     val editsLeft = if (pro) Int.MAX_VALUE else maxOf(0, Free.REEDITS - (base?.reedits ?: 0))
     LaunchedEffect(capture) { if (capture > 0) { pressed = null; step = 0 } }
     LaunchedEffect(edit?.id) { if (edit != null) pressed = null }
-    fun reset() { pressed = null; step = 0; source = null; srcName = null; isDemo = false; onCancelEdit() }
+    fun reset() { pressed = null; step = 0; source = null; srcName = null; currentVoiceId = null; isDemo = false; onCancelEdit() }
+
+    LaunchedEffect(initialVoice?.id) {
+        val v = initialVoice ?: return@LaunchedEffect
+        val samples = RecordStore.loadVaultVoice(v.id) ?: return@LaunchedEffect
+        source = samples
+        srcName = v.name
+        isDemo = false
+        currentVoiceId = v.id
+        pressed = null
+        step = 0
+        onClearInitialVoice()
+    }
     fun makeChanges() {
         val p = (if (pressed != null) base else null) ?: run { step = 2; return }
         if (pro) { step = 2; return }
@@ -129,7 +143,7 @@ fun Studio(
     LaunchedEffect(edit?.id) {
         val e = edit ?: return@LaunchedEffect
         val v = RecordStore.loadVoice(e.id) ?: return@LaunchedEffect
-        source = v; isDemo = false; srcName = null
+        source = v; isDemo = false; srcName = null; currentVoiceId = e.id
         meta = StudioMeta(title = e.title, recipient = e.recipient, sender = e.sender, dedication = e.dedication, occasion = e.occasion, date = e.date, sideA = e.sideA, sideB = e.sideB)
         e.settings?.let { st ->
             presetId = st.presetId; styleId = st.styleId; crackleId = st.crackleId; music = st.music
@@ -215,7 +229,30 @@ fun Studio(
                 .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 32.dp),
         ) {
             when (step) {
-                0 -> Capture(source, srcName, if (pro) PRO_SECONDS else Free.MAX_SECONDS, pro) { s, n, demo -> source = s; srcName = n; isDemo = demo && s != null }
+                0 -> Capture(
+                    source = source,
+                    srcName = srcName,
+                    max = if (pro) PRO_SECONDS else Free.MAX_SECONDS,
+                    pro = pro,
+                    onVoiceRecorded = { vid, name, data, dur ->
+                        currentVoiceId = vid
+                        scope.launch {
+                            RecordStore.saveVaultVoice(
+                                id = vid,
+                                name = name,
+                                voice = data,
+                                duration = dur,
+                                isPro = pro
+                            )
+                        }
+                    },
+                    setSource = { s, n, demo ->
+                        source = s
+                        srcName = n
+                        isDemo = demo && s != null
+                        if (s == null) currentVoiceId = null
+                    }
+                )
                 1 -> Dedication(meta) { meta = it }
                 2 -> Column(verticalArrangement = Arrangement.spacedBy(28.dp)) {
                     Column {
@@ -482,6 +519,17 @@ fun Studio(
                         val rec = prev?.let { fresh.copy(createdAt = it.createdAt, favorite = it.favorite, lastPlayedAt = it.lastPlayedAt, labelPhotoAdjust = it.labelPhotoAdjust, hasPhoto = it.hasPhoto, reedits = it.reedits) } ?: fresh
                         RecordStore.saveVoice(id, src)
                         RecordStore.put(rec, master)
+                        if (!isDemo) {
+                            val vId = currentVoiceId ?: id
+                            RecordStore.saveVaultVoice(
+                                id = vId,
+                                name = m.title.ifBlank { srcName ?: "Voice take" },
+                                voice = src,
+                                duration = st.l.size / SR.toFloat(),
+                                recordTitle = m.title.ifBlank { "Untitled" },
+                                isPro = pro
+                            )
+                        }
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         render = null; pressed = rec
                         onDone(rec)

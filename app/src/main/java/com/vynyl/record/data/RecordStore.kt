@@ -1,5 +1,6 @@
 package com.vynyl.record.data
 
+import com.vynyl.record.pro.Free
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,22 +38,38 @@ data class RecordMeta(
     val reedits: Int = 0,
 )
 
+/** Saved recorded voice in Master Vault, available for reuse across records. */
+@Serializable
+data class VaultVoice(
+    val id: String,
+    val name: String,
+    val duration: Float,
+    val createdAt: Long,
+    val recordTitle: String? = null,
+)
+
 object RecordStore {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private lateinit var dir: File
     private val _records = MutableStateFlow<List<RecordMeta>>(emptyList())
     val records: StateFlow<List<RecordMeta>> = _records
+    private val _vaultVoices = MutableStateFlow<List<VaultVoice>>(emptyList())
+    val vaultVoices: StateFlow<List<VaultVoice>> = _vaultVoices
 
     fun init(ctx: Context) {
         dir = File(ctx.filesDir, "records").apply { mkdirs() }
         _records.value = runCatching { json.decodeFromString<List<RecordMeta>>(index.readText()) }.getOrDefault(emptyList())
+        _vaultVoices.value = runCatching { json.decodeFromString<List<VaultVoice>>(vaultVoicesIndex.readText()) }.getOrDefault(emptyList())
     }
 
     private val index get() = File(dir, "records.json")
+    private val vaultVoicesIndex get() = File(dir, "vault_voices.json")
+
     fun masterFile(id: String) = File(dir, "$id.wav")
     fun photoFile(id: String) = File(dir, "$id.label.jpg")
     fun photoOriginalFile(id: String) = File(dir, "$id.orig.jpg")
     fun voiceFile(id: String) = File(dir, "$id.voice.f32")
+    fun vaultVoiceFile(id: String) = File(dir, "voice_$id.f32")
 
     suspend fun saveVoice(id: String, voice: FloatArray) = withContext(Dispatchers.IO) {
         val b = ByteBuffer.allocate(voice.size * 4).order(ByteOrder.LITTLE_ENDIAN); b.asFloatBuffer().put(voice)
@@ -69,6 +86,53 @@ object RecordStore {
         _records.value = list
         val tmp = File(dir, "records.json.tmp")
         tmp.writeText(json.encodeToString(list)); tmp.renameTo(index)
+    }
+
+    private fun persistVaultVoices(list: List<VaultVoice>) {
+        _vaultVoices.value = list
+        val tmp = File(dir, "vault_voices.json.tmp")
+        tmp.writeText(json.encodeToString(list)); tmp.renameTo(vaultVoicesIndex)
+    }
+
+    suspend fun saveVaultVoice(
+        id: String,
+        name: String,
+        voice: FloatArray,
+        duration: Float,
+        recordTitle: String? = null,
+        isPro: Boolean = false,
+    ): VaultVoice? = withContext(Dispatchers.IO) {
+        val existing = _vaultVoices.value.firstOrNull { it.id == id }
+        if (existing == null && !isPro && _vaultVoices.value.size >= Free.MAX_VOICES) {
+            return@withContext null
+        }
+        val b = ByteBuffer.allocate(voice.size * 4).order(ByteOrder.LITTLE_ENDIAN)
+        b.asFloatBuffer().put(voice)
+        vaultVoiceFile(id).writeBytes(b.array())
+        val updated = existing?.copy(name = name, recordTitle = recordTitle ?: existing.recordTitle)
+            ?: VaultVoice(id = id, name = name, duration = duration, createdAt = System.currentTimeMillis(), recordTitle = recordTitle)
+        val next = _vaultVoices.value.filterNot { it.id == id } + updated
+        persistVaultVoices(next)
+        updated
+    }
+
+    suspend fun updateVaultVoiceTitle(id: String, newName: String, recordTitle: String? = null) = withContext(Dispatchers.IO) {
+        persistVaultVoices(_vaultVoices.value.map {
+            if (it.id == id) it.copy(name = newName, recordTitle = recordTitle ?: it.recordTitle) else it
+        })
+    }
+
+    suspend fun loadVaultVoice(id: String): FloatArray? = withContext(Dispatchers.IO) {
+        val f = vaultVoiceFile(id)
+        val fileToRead = if (f.exists()) f else voiceFile(id)
+        if (!fileToRead.exists()) return@withContext null
+        val fb = ByteBuffer.wrap(fileToRead.readBytes()).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+        FloatArray(fb.remaining()).also { fb.get(it) }
+    }
+
+    suspend fun deleteVaultVoice(id: String) = withContext(Dispatchers.IO) {
+        vaultVoiceFile(id).delete()
+        persistVaultVoices(_vaultVoices.value.filterNot { it.id == id })
     }
 
     fun get(id: String) = _records.value.firstOrNull { it.id == id }

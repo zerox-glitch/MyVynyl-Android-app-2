@@ -37,6 +37,7 @@ fun VynylApp() {
     val records by RecordStore.records.collectAsState()
     var playingId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var loadVoice by remember { mutableStateOf<com.vynyl.record.data.VaultVoice?>(null) }
     val editing = editingId?.let { id -> records.firstOrNull { it.id == id } }
     val playing = playingId?.let { id -> records.firstOrNull { it.id == id } }
     val paywall by Pro.paywall.collectAsState()
@@ -56,9 +57,19 @@ fun VynylApp() {
             Studio(
                 recordCount = records.size, edit = editing, onCancelEdit = { editingId = null }, onDone = {}, onPlay = { r -> playingId = r.id },
                 capture = capture, active = tab == "studio" && playing == null && !guide, onStep = { studioStep = it },
+                initialVoice = loadVoice, onClearInitialVoice = { loadVoice = null },
             )
             if (tab == "vault") Box(Modifier.fillMaxSize().background(V.obsidian).clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, null) {}) {
-                Vault(records = records, onPlay = { playingId = it.id }, onNew = { tab = "studio"; capture++ })
+                Vault(
+                    records = records,
+                    onPlay = { playingId = it.id },
+                    onNew = { tab = "studio"; capture++ },
+                    onUseVoice = { v ->
+                        loadVoice = v
+                        tab = "studio"
+                        capture++
+                    }
+                )
             }
             playing?.let { Player(record = it, onClose = { playingId = null }, onEdit = { r -> playingId = null; editingId = r.id; tab = "studio" }) }
         }
