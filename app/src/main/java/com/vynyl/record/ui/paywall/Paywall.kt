@@ -75,16 +75,34 @@ fun ProBadge(modifier: Modifier = Modifier) {
 fun ProButton(modifier: Modifier = Modifier) {
     val ent by Pro.entitlement.collectAsState()
     if (ent.pro) {
-        Box(modifier.heightIn(min = 36.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(V.gold1, V.gold3))).padding(1.dp).clickable { Pro.openPaywall() }) {
-            Row(Modifier.clip(CircleShape).background(V.obsidian).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Crown(V.amberBright); Text("PRO", style = decoStyle(11, V.amberBright))
-            }
+        Row(
+            modifier = modifier
+                .height(32.dp)
+                .clip(CircleShape)
+                .background(Brush.verticalGradient(listOf(Color(0xFF262019), Color(0xFF14110E))))
+                .border(1.dp, Brush.verticalGradient(listOf(V.gold1, V.gold2, V.gold3)), CircleShape)
+                .clickable { Pro.openPaywall() }
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Crown(V.amberBright, size = 13)
+            Text("PRO", style = decoStyle(11, V.amberBright))
         }
     } else {
         Row(
-            modifier.heightIn(min = 36.dp).clip(CircleShape).background(goldV).clickable { Pro.openPaywall() }.padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) { Crown(V.obsidian); Text("GO PRO", style = decoStyle(11, V.obsidian)) }
+            modifier = modifier
+                .height(32.dp)
+                .clip(CircleShape)
+                .background(goldV)
+                .clickable { Pro.openPaywall() }
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Crown(V.obsidian, size = 13)
+            Text("GO PRO", style = decoStyle(11, V.obsidian))
+        }
     }
 }
 
