@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vynyl mark (matches public/icon.svg): record with a V-notch cut from rim to label, inside the adaptive-icon safe zone -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#14100D" android:pathData="M26.01,55a27.99,27.99 0 1,0 55.98,0a27.99,27.99 0 1,0 -55.98,0z" />
+    <path android:strokeColor="#29F5E9D3" android:strokeWidth="1" android:pathData="M31.61,55a22.39,22.39 0 1,0 44.78,0a22.39,22.39 0 1,0 -44.78,0z" />
+    <path android:strokeColor="#1AF5E9D3" android:strokeWidth="1" android:pathData="M37.21,55a16.79,16.79 0 1,0 33.58,0a16.79,16.79 0 1,0 -33.58,0z" />
+    <path android:fillColor="#D97706" android:pathData="M42.18,22.66L54.0,45.67L65.82,22.66z" />
+    <path android:fillColor="#F5E9D3" android:pathData="M45.29,55a8.71,8.71 0 1,0 17.42,0a8.71,8.71 0 1,0 -17.42,0z" />
+    <path android:fillColor="#14100D" android:pathData="M52.38,55a1.62,1.62 0 1,0 3.24,0a1.62,1.62 0 1,0 -3.24,0z" />
+</vector>

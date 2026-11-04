@@ -1,0 +1,10 @@
+{
+  "description": "Manage and organize your vinyl record collection effortlessly with this user-friendly app designed for music enthusiasts, offering cataloging and tracking features.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

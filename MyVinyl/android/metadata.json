@@ -1,0 +1,6 @@
+{
+  "name": "Vynyl Record",
+  "description": "Vintage vinyl lathe record cutter, turntable player, and audio suite.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

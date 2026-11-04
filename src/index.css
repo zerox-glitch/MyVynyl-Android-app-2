@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Gloock&family=Hanken+Grotesk:wght@400;500;600&family=Big+Shoulders+Display:wght@600;800&family=DM+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-obsidian: #0c0a09;
+  --color-stone: #1c1917;
+  --color-panel: #211e1a;
+  --color-amber: #d97706;
+  --color-amber-bright: #f59e0b;
+  --color-brass: #b45309;
+  --color-cream: #fef3c7;
+  --color-paper: #fff7e6;
+  --color-ruby: #991b1b;
+  --color-muted: #a8a29e;
+  --color-err: #f87171;
+  --color-ok: #34d399;
+  --font-display: 'Gloock', serif;
+  --font-sans: 'Hanken Grotesk', system-ui, sans-serif;
+  --font-deco: 'Big Shoulders Display', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+@layer base {
+  body { background: var(--color-obsidian); color: var(--color-cream); font-family: var(--font-sans); }
+  ::selection { background: var(--color-amber); color: var(--color-obsidian); }
+}
+
+@layer utilities {
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .grain { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.06'/%3E%3C/svg%3E"); }
+  .deco { font-family: var(--font-deco); text-transform: uppercase; letter-spacing: .22em; }
+}
+
+@layer base {
+  html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  canvas { touch-action: none; }
+}
+
+/* launch animation */
+@keyframes splash-tile { from { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.04); opacity: 1 } to { transform: scale(1) } }
+@keyframes splash-disc { from { transform: rotate(-540deg) } to { transform: rotate(0) } }
+@keyframes splash-rise { from { transform: translateY(12px); opacity: 0; letter-spacing: .7em } to { transform: none; opacity: 1 } }
+@keyframes splash-out { to { opacity: 0; visibility: hidden } }
+.splash { animation: splash-out .5s 2.4s ease-in forwards }
+.splash-tile { animation: splash-tile .7s cubic-bezier(.2,.9,.3,1.2) both }
+.splash-disc { animation: splash-disc 1.6s .15s cubic-bezier(.15,.7,.2,1) both }
+.splash-word { animation: splash-rise .7s 1.35s cubic-bezier(.2,.8,.2,1) both }
+.splash-tag { animation: splash-rise .7s 1.6s ease-out both }
+@media (prefers-reduced-motion: reduce) { .splash-tile, .splash-disc, .splash-word, .splash-tag { animation-duration: .01s; animation-delay: 0s } }
